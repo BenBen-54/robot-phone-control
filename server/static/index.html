@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>智元素手机控制台</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar">
+        <div>
+          <h1>智元素控制台</h1>
+          <p id="status">未连接</p>
+        </div>
+        <button id="reconnect" class="secondary">重连</button>
+      </section>
+
+      <section class="pad" aria-label="movement controls">
+        <button data-move="forward">前进</button>
+        <div class="row">
+          <button data-move="left">左移</button>
+          <button id="stop" class="danger">停止</button>
+          <button data-move="right">右移</button>
+        </div>
+        <button data-move="backward">后退</button>
+      </section>
+
+      <section class="actions">
+        <button data-move="turn_left">左转</button>
+        <button data-move="turn_right">右转</button>
+        <button id="reload">装填</button>
+        <button id="shoot">射击</button>
+      </section>
+
+      <section class="log">
+        <h2>日志</h2>
+        <pre id="log"></pre>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+
