@@ -26,15 +26,58 @@
         <button data-move="backward">后退</button>
       </section>
 
-      <section class="actions">
+      <section class="controls">
+        <label for="speed">速度 <strong id="speed-value">10</strong></label>
+        <input id="speed" type="range" min="5" max="35" value="10" />
+      </section>
+
+      <section class="actions" aria-label="turn controls">
         <button data-move="turn_left">左转</button>
         <button data-move="turn_right">右转</button>
-        <button id="reload">装填</button>
-        <button id="shoot">射击</button>
+      </section>
+
+      <section class="actions" aria-label="robot actions">
+        <button data-action="4">普攻</button>
+        <button data-action="7">开机动作</button>
+        <button data-mode="0">模式0</button>
+        <button data-mode="2">模式2</button>
+        <button id="battery">电池</button>
+      </section>
+
+      <section class="vision">
+        <h2>视觉识别</h2>
+        <div class="upload-row">
+          <input id="ocr-file" type="file" accept="image/*" />
+          <button id="ocr-run">识别并播报</button>
+        </div>
+        <div class="camera-row">
+          <button id="camera-snapshot" class="secondary">摄像头拍照</button>
+          <button id="camera-ocr">摄像头识别并播报</button>
+        </div>
+        <button id="task-card-run" class="wide-button">快速识别任务卡</button>
+        <div class="template-row">
+          <input id="template-phrase" type="text" value="位置一 劈砍" />
+          <button id="template-calibrate" class="secondary">校准当前任务卡</button>
+        </div>
+        <button id="template-run" class="wide-button">模板识别并播报</button>
+        <button id="template-execute" class="wide-button danger">停车识别并执行</button>
+        <div class="scan-row">
+          <button id="auto-scan-start">开始轮询识别</button>
+          <button id="auto-scan-stop" class="secondary">停止轮询</button>
+        </div>
+        <p id="auto-scan-status">轮询未启动</p>
+        <img id="ocr-preview" alt="" hidden />
+        <p id="ocr-result">未识别</p>
       </section>
 
       <section class="log">
-        <h2>日志</h2>
+        <div class="log-heading">
+          <h2>日志</h2>
+          <div class="log-actions">
+            <button id="copy-log" class="secondary small-button">复制日志</button>
+            <button id="clear-log" class="secondary small-button">清空</button>
+          </div>
+        </div>
         <pre id="log"></pre>
       </section>
     </main>

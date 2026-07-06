@@ -6,8 +6,9 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f4f6f8;
-  color: #18202a;
+  background: #eef2f6;
+  color: #16202b;
+  user-select: none;
 }
 
 .shell {
@@ -34,6 +35,26 @@ p {
   color: #607080;
 }
 
+.controls {
+  margin: 8px 0 16px;
+  padding: 12px;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.controls label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 15px;
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
 .pad {
   display: grid;
   gap: 10px;
@@ -51,6 +72,7 @@ p {
 
 .actions {
   grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 10px;
 }
 
 button {
@@ -62,7 +84,7 @@ button {
   color: #fff;
   font-size: 18px;
   font-weight: 700;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .pad > button {
@@ -94,9 +116,117 @@ button:active {
   background: #fff;
 }
 
+.vision {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.vision h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.upload-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.camera-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.template-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.scan-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.template-row input {
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 10px;
+  font: inherit;
+}
+
+.upload-row button,
+.camera-row button,
+.template-row button,
+.scan-row button {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 15px;
+}
+
+.wide-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 10px;
+  font-size: 15px;
+}
+
+#ocr-preview {
+  display: block;
+  width: min(240px, 100%);
+  margin-top: 12px;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+}
+
+#ocr-result {
+  margin-top: 10px;
+  color: #16202b;
+  font-weight: 700;
+}
+
+#auto-scan-status {
+  margin-top: 10px;
+  color: #475569;
+  font-weight: 700;
+}
+
+.log-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
 .log h2 {
   margin: 0 0 8px;
   font-size: 16px;
+}
+
+.log-heading h2 {
+  margin: 0;
+}
+
+.log-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.small-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
 }
 
 pre {
