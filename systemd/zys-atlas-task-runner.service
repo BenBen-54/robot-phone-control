@@ -1,0 +1,33 @@
+[Unit]
+Description=ZhiYuanSu Atlas Camera OCR and UART Task Runner
+After=local-fs.target
+Conflicts=serial-getty@ttyAMA0.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/robot-phone-control
+Environment=PYTHONUNBUFFERED=1
+Environment=SERIAL_PORT=/dev/ttyAMA0
+Environment=SERIAL_BAUD=115200
+Environment=CAMERA=/dev/video0
+Environment=RECOGNIZER=rapidocr
+Environment=INTERVAL=0.2
+Environment=CONFIRM_HITS=1
+Environment=RAPIDOCR_MIN_CONFIDENCE=0.90
+Environment=COOLDOWN=10
+Environment=REARM_MISSES=2
+Environment=STOP_BEFORE_ACTION=1
+ExecStartPre=/usr/bin/test -c /dev/ttyAMA0
+ExecStartPre=/usr/bin/test -c /dev/video0
+ExecStart=/root/robot-phone-control/scripts/run_atlas_task_runner.sh
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=20
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

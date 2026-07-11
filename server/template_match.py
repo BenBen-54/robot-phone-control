@@ -6,10 +6,10 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
-DEFAULT_PHRASE = "位置一 劈砍"
+DEFAULT_PHRASE = "位置1 劈砍"
 TEMPLATE_PATH = Path(os.environ.get("TASK_TEMPLATE_PATH", "data/task_templates.json"))
 
 
@@ -18,20 +18,23 @@ def calibrate_task_template(image_data: str, phrase: str = DEFAULT_PHRASE) -> di
     image = _load_image(image_data)
     current_hashes = _image_hashes(image)
     templates = _load_templates()
-    templates = [item for item in templates if item.get("phrase") != phrase]
-    templates.append(
+    new_template = (
         {
             "phrase": phrase,
             "created_at": datetime.now().isoformat(timespec="seconds"),
             "hashes": current_hashes,
         }
     )
+    per_phrase = max(1, int(os.environ.get("TASK_TEMPLATES_PER_PHRASE", "3")))
+    same_phrase = [item for item in templates if item.get("phrase") == phrase]
+    other_phrases = [item for item in templates if item.get("phrase") != phrase]
+    templates = other_phrases + (same_phrase + [new_template])[-per_phrase:]
     _save_templates(templates)
     return {
         "ok": True,
         "matched": True,
         "phrase": phrase,
-        "position": "位置一" if "位置" in phrase else None,
+        "position": _position_from_phrase(phrase),
         "action": "劈砍" if "劈砍" in phrase else None,
         "raw_text": f"模板已校准：{phrase}",
         "normalized_text": phrase.replace(" ", ""),
@@ -72,19 +75,25 @@ def recognize_task_template(image_data: str) -> dict[str, Any]:
 
         best = max(matches, key=lambda item: item["score"])
         threshold = float(os.environ.get("TASK_TEMPLATE_THRESHOLD", "0.68"))
-        matched = best["score"] >= threshold
+        competitors = [item for item in matches if item["phrase"] != best["phrase"]]
+        competitor_score = max((item["score"] for item in competitors), default=0.0)
+        margin = best["score"] - competitor_score
+        required_margin = float(os.environ.get("TASK_TEMPLATE_MARGIN", "0.015"))
+        matched = best["score"] >= threshold and (not competitors or margin >= required_margin)
         phrase = best["phrase"] if matched else None
         return {
             "ok": True,
             "label": "template_match",
             "raw_text": f"template_score={best['score']:.3f}, threshold={threshold:.3f}",
             "normalized_text": phrase.replace(" ", "") if phrase else "",
-            "position": "位置一" if phrase and "位置" in phrase else None,
+            "position": _position_from_phrase(phrase),
             "action": "劈砍" if phrase and "劈砍" in phrase else None,
             "phrase": phrase,
             "matched": matched,
             "template_score": best["score"],
             "template_threshold": threshold,
+            "template_margin": round(margin, 4),
+            "template_required_margin": required_margin,
             "matches": matches,
         }
     except Exception as exc:
@@ -115,6 +124,8 @@ def _image_hashes(image: Any) -> dict[str, str]:
         "full": gray,
         "center80": _crop_center(gray, 0.8),
         "center60": _crop_center(gray, 0.6),
+        "upper_center": _crop_ratio(gray, 0.18, 0.10, 0.82, 0.55),
+        "lower_center": _crop_ratio(gray, 0.18, 0.42, 0.82, 0.90),
     }
     hashes: dict[str, str] = {}
     for name, variant in variants.items():
@@ -183,6 +194,27 @@ def _crop_center(image: Any, ratio: float) -> Any:
     left = (width - crop_width) // 2
     top = (height - crop_height) // 2
     return image.crop((left, top, left + crop_width, top + crop_height))
+
+
+def _crop_ratio(image: Any, left: float, top: float, right: float, bottom: float) -> Any:
+    width, height = image.size
+    return image.crop(
+        (
+            int(width * left),
+            int(height * top),
+            int(width * right),
+            int(height * bottom),
+        )
+    )
+
+
+def _position_from_phrase(phrase: Optional[str]) -> Optional[str]:
+    normalized = (phrase or "").replace(" ", "")
+    if "位置2" in normalized or "位置二" in normalized:
+        return "位置2"
+    if "位置1" in normalized or "位置一" in normalized:
+        return "位置1"
+    return None
 
 
 def _load_templates() -> list[dict[str, Any]]:

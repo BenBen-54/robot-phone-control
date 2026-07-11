@@ -1,10 +1,12 @@
 # Robot Phone Control Starter
 
+阶段一稳定版本与恢复方法见：[docs/STAGE1_STABLE.md](docs/STAGE1_STABLE.md)。
+
 手机端控制智元素机器人的最小 starter。
 
 ## 当前交接文档
 
-目前项目已经扩展到 Atlas 摄像头、任务卡模板识别、轮询识别和识别后执行动作。完整进度、代码说明、部署方式、无电脑网线/路由器方案见：
+目前项目已经扩展到Android直连控制、Atlas RapidOCR、UART动作、自启动和无电脑运行。完整进度、代码说明及部署方式见：
 
 ```text
 docs/PROJECT_HANDOFF.md
@@ -46,6 +48,27 @@ python server/main.py --host 0.0.0.0 --port 8000 --robot-mode udp --robot-ip 192
 docs/atlas_beginner_start.md
 docs/atlas_no_hdmi_usb_ssh.md
 docs/atlas_deploy.md
+```
+
+## Atlas UART 直连机器人
+
+手机继续通过 MYAP Wi-Fi 控制底盘，Atlas 通过 UART 触发动作的第一步安全测试见：
+
+```text
+docs/atlas_uart_first_test.md
+```
+
+串口动作验证成功后，继续进行 Atlas 摄像头后台识别、位置1/位置2动作映射和干运行测试：
+
+```text
+docs/atlas_serial_vision_next.md
+```
+
+对应工具：
+
+```bash
+python tools/zys_serial_test.py ports
+python tools/zys_serial_test.py --port /dev/ttyAMA0 probe
 ```
 
 ## OCR 识别与语音播报

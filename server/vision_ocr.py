@@ -114,15 +114,19 @@ def parse_task_text(text: str) -> dict[str, Any]:
     )
 
     position = None
-    position_score = _best_similarity(normalized, ("位置一", "位置1"))
-    if "位置" in normalized and ("1" in normalized or "一" in normalized):
-        position = "位置一"
-    elif ("位" in normalized and "置" in normalized) and ("1" in normalized or "一" in normalized):
-        position = "位置一"
-    elif "位置" in normalized:
-        position = "位置一"
-    elif position_score >= 0.72:
-        position = "位置一"
+    position_one_score = _best_similarity(normalized, ("位置一", "位置1", "任务一", "任务1"))
+    position_two_score = _best_similarity(normalized, ("位置二", "位置2", "任务二", "任务2"))
+    position_score = max(position_one_score, position_two_score)
+    has_position_word = "位置" in normalized or ("位" in normalized and "置" in normalized)
+    has_task_word = "任务" in normalized
+    if (has_position_word or has_task_word) and ("2" in normalized or "二" in normalized):
+        position = "位置2"
+    elif (has_position_word or has_task_word) and ("1" in normalized or "一" in normalized):
+        position = "位置1"
+    elif position_two_score >= 0.72 and position_two_score > position_one_score:
+        position = "位置2"
+    elif position_one_score >= 0.72:
+        position = "位置1"
 
     action = None
     action_score = _best_similarity(normalized, ("劈砍", "劈坎", "辟砍", "僻砍", "壁砍", "劈饮", "劈欣", "劈欠"))

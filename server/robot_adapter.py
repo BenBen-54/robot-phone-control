@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import socket
 import struct
+import threading
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 
 ROBOT_PORT = 9999
@@ -65,7 +66,14 @@ def _short_packet(device: int, command: int, params: bytes = b"") -> bytes:
     return bytes([0xFE, 0xEF]) + body + bytes([_checksum(body)])
 
 
-def _parse_packet(raw: bytes) -> dict[str, Any] | None:
+def _bridge_packet(device: int, command: int, params: bytes = b"") -> bytes:
+    if len(params) > 150:
+        raise ValueError("bridge packet params must be <= 150 bytes")
+    body = bytes([device, command, len(params)]) + params
+    return bytes([0xF5, 0x5F]) + body + bytes([_checksum(body)])
+
+
+def _parse_packet(raw: bytes) -> Optional[dict[str, Any]]:
     if len(raw) < 7 or raw[:2] != b"\xFE\xEF":
         return None
 
@@ -215,6 +223,156 @@ class ZysUdpRobotAdapter(MockRobotAdapter):
         if abs(vx) >= abs(vy):
             return (0 if vx >= 0 else 180, int(abs(vx) * 100), 0)
         return (90 if vy >= 0 else 270, int(abs(vy) * 100), 0)
+
+
+class ZysSerialRobotAdapter(MockRobotAdapter):
+    """Control the robot through the Arduino UART1-to-UART2 bridge."""
+
+    def __init__(self, port: str = "/dev/ttyAMA0", baud: int = 115200) -> None:
+        try:
+            import serial
+        except ImportError as exc:
+            raise RuntimeError("pyserial is not installed; run: pip install pyserial==3.5") from exc
+
+        self.port = port
+        self.baud = int(baud)
+        self._lock = threading.Lock()
+        try:
+            self.serial = serial.Serial(
+                port=self.port,
+                baudrate=self.baud,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                timeout=0.05,
+                write_timeout=1.0,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"cannot open robot serial port {self.port}: {exc}") from exc
+
+    def handle(self, message: dict[str, Any]) -> dict[str, Any]:
+        cmd = message.get("cmd")
+        if cmd == "action":
+            action_id = max(0, min(int(message.get("action_id", 4)), 8))
+            self.run_action(action_id)
+            return {"cmd": cmd, "state": "sent", "action_id": action_id}
+        if cmd == "shoot":
+            self.run_action(4)
+            return {"cmd": cmd, "state": "sent", "action_id": 4}
+        if cmd == "stop":
+            return self.stop()
+        if cmd == "battery":
+            return {"cmd": cmd, **self.query_battery()}
+        if cmd == "mode":
+            mode = max(0, min(int(message.get("mode", 0)), 2))
+            self._send(_bridge_packet(0x08, 0x01, bytes([mode])), "mode")
+            return {"cmd": cmd, "state": "sent", "mode": mode}
+        if cmd == "move":
+            angle, speed, turn = self._movement_from_message(message)
+            self._send_move(angle, speed, turn)
+            return {"cmd": cmd, "state": "moving", "angle": angle, "speed": speed, "turn": turn}
+        raise ValueError(f"unknown command: {cmd}")
+
+    def run_action(self, action_id: int) -> None:
+        action_id = max(0, min(int(action_id), 8))
+        self._send(_bridge_packet(0x07, 0x55, bytes([action_id])), "action", wait_seconds=0.15)
+
+    def stop(self) -> dict[str, Any]:
+        self._send_move(0, 0, 0)
+        return {"cmd": "stop", "state": "stopped"}
+
+    def query_battery(self) -> dict[str, Any]:
+        packets = self._send(_bridge_packet(0x08, 0x03), "battery", wait_seconds=0.8)
+        for packet in packets:
+            if packet["device"] == 0x08 and packet["command"] == 0x03:
+                params = packet["params"]
+                if len(params) >= 6:
+                    return {
+                        "battery": int.from_bytes(params[0:2], "little", signed=False),
+                        "voltage_mv": int.from_bytes(params[2:4], "little", signed=False),
+                        "current_ma": int.from_bytes(params[4:6], "little", signed=True),
+                    }
+        return {"battery": None, "voltage_mv": None, "current_ma": None}
+
+    def close(self) -> None:
+        if getattr(self, "serial", None) and self.serial.is_open:
+            self.serial.close()
+
+    def _send_move(self, angle: int, speed: int, turn: int) -> None:
+        angle = int(angle) % 360
+        speed = max(0, min(int(speed), 35))
+        turn = max(-350, min(int(turn), 350))
+        params = struct.pack("<hhhH", angle, speed, turn, 200)
+        self._send(_bridge_packet(0x08, 0x02, params), "move", wait_seconds=0.1)
+
+    def _movement_from_message(self, message: dict[str, Any]) -> tuple[int, int, int]:
+        if "angle" in message or "speed" in message or "turn" in message:
+            return (
+                int(message.get("angle", 0)),
+                int(message.get("speed", 0)),
+                int(message.get("turn", 0)),
+            )
+        vx = float(message.get("vx", 0))
+        vy = float(message.get("vy", 0))
+        wz = float(message.get("wz", 0))
+        if abs(wz) > 0:
+            return (0, 0, int(wz * 300))
+        if abs(vx) >= abs(vy):
+            return (0 if vx >= 0 else 180, int(abs(vx) * 100), 0)
+        return (90 if vy >= 0 else 270, int(abs(vy) * 100), 0)
+
+    def _send(
+        self,
+        packet: bytes,
+        label: str,
+        wait_seconds: float = 0.2,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            print(f"[serial] {label} -> {self.port} {_hex_bytes(packet)}", flush=True)
+            self.serial.reset_input_buffer()
+            self.serial.write(packet)
+            self.serial.flush()
+            deadline = time.monotonic() + wait_seconds
+            buffer = bytearray()
+            packets: list[dict[str, Any]] = []
+            while time.monotonic() < deadline:
+                waiting = self.serial.in_waiting
+                data = self.serial.read(waiting if waiting > 0 else 1)
+                if data:
+                    buffer.extend(data)
+                    packets.extend(_take_bridge_packets(buffer))
+            return packets
+
+
+def _take_bridge_packets(buffer: bytearray) -> list[dict[str, Any]]:
+    packets: list[dict[str, Any]] = []
+    while True:
+        header = buffer.find(b"\xF5\x5F")
+        if header < 0:
+            if len(buffer) > 1:
+                del buffer[:-1]
+            return packets
+        if header:
+            del buffer[:header]
+        if len(buffer) < 5:
+            return packets
+        param_length = buffer[4]
+        total_length = 6 + param_length
+        if len(buffer) < total_length:
+            return packets
+        raw = bytes(buffer[:total_length])
+        del buffer[:total_length]
+        body = raw[2:-1]
+        if _checksum(body) != raw[-1]:
+            continue
+        packets.append(
+            {
+                "device": raw[2],
+                "command": raw[3],
+                "params": raw[5:-1],
+                "raw": raw,
+            }
+        )
 
 
 class ZysRobotAdapter(MockRobotAdapter):

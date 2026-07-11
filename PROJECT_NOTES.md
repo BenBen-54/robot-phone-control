@@ -1,22 +1,70 @@
-# 智元素格斗机器人任务笔记
+# 智元素机器人项目进度
 
-## 任务目标
+## 当前稳定基线
 
-阶段一：完成手机端控制界面，手动控制机器人接近标靶；机器人在控制下绕标靶一周，识别标靶上的汉字信息，并执行汉字对应任务。
+当前稳定版本：`stage1-stable-v1.0.0`
 
-阶段二：机器人完全自主在场地内寻找标靶，靠近并绕标靶一周，识别标靶上的汉字信息，然后执行对应动作。
+完整恢复说明见：`docs/STAGE1_STABLE.md`。
 
-## 推荐系统分层
+## 阶段一已完成
 
-- 手机端：只负责发送命令和显示状态。
-- 机器人端 Python 服务：负责顶层任务逻辑、状态机、运动控制调度。
-- 视觉模块：负责 AprilTag、标靶检测、OCR 汉字识别。
-- Atlas 开发板：建议先作为视觉推理服务器，不直接控制底盘。
-- 智元素 SDK：负责底盘、云台、射击、装填等底层动作。
+### Android直接控制
 
-## 当前 starter 内容
+- 手机连接机器人MYAP热点。
+- Android App直接通过UDP协议控制机器人，不依赖Atlas或电脑中转。
+- 摇杆以固定周期发送移动指令，支持连续平滑移动。
+- App保留普攻动作。
+- App内置Google ML Kit中文OCR，可识别位置1/位置2任务卡。
 
-这个项目先实现第一步：手机网页控制台 + 机器人端 FastAPI/WebSocket 服务。
+### Atlas独立视觉与动作
 
-第一版建议先跑 mock 模式，确认手机能打开网页并发送命令；然后再把智元素官方 `test_control.py` 里的运动、停止、射击、装填调用接入 `server/robot_adapter.py`。
+- Atlas 200I DK A2连接USB摄像头。
+- RapidOCR和ONNX Runtime部署在Atlas本地，运行时不访问云端API。
+- Atlas通过40Pin `/dev/ttyAMA0`、115200波特率连接机器人UART1。
+- 机器人中的Arduino Mega运行`UART1TOUART2`透明串口转发程序。
+- 串口使用机器人背包协议`F5 5F`帧，不使用WiFi协议的`FE EF`帧。
+- 位置1执行动作1，位置2执行动作2，动作文件中包含对应语音。
+- 同一任务卡只触发一次，移开后重新允许触发。
 
+### 无电脑运行
+
+- `zys-atlas-task-runner.service`开机自动启动。
+- `serial-getty@ttyAMA0.service`已屏蔽，串口由Python服务独占。
+- 稳定参数为单帧确认和最低0.90 OCR置信度。
+- 手机继续直接控制机器人底盘，Atlas独立完成OCR和动作。
+
+## 阶段一关键文件
+
+```text
+android-app/                         Android手机App
+server/rapidocr_recognizer.py       Atlas RapidOCR识别器
+server/atlas_task_runner.py         轮询、确认、冷却和动作状态逻辑
+server/robot_adapter.py             UDP与UART机器人适配器
+server/task_actions.py              任务到动作编号映射
+tools/zys_serial_test.py            串口诊断工具
+systemd/zys-atlas-task-runner.service
+scripts/install_atlas_autostart.sh
+docs/STAGE1_STABLE.md
+```
+
+## 阶段二目标
+
+阶段二计划在独立分支和服务中实现：
+
+```text
+目标检测柱子
+-> 接近并环绕柱子
+-> 定位任务纸
+-> RapidOCR读取任务
+-> 目标检测锣
+-> 接近并对准锣
+-> 执行对应劈砍动作
+```
+
+推荐使用轻量YOLO模型，在电脑端训练并导出ONNX，再转换为Atlas Ascend310B4使用的OM模型。阶段二必须保留以下隔离规则：
+
+- 不修改或覆盖阶段一稳定标签。
+- 不覆盖机器人动作文件和UART透明桥固件。
+- 阶段二使用独立systemd服务。
+- 两个服务不得同时占用摄像头和`/dev/ttyAMA0`。
+- 阶段二失败时能够立即重新启用阶段一服务。

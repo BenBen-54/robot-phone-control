@@ -187,7 +187,7 @@ async function templateCalibrate() {
   try {
     const result = await postJson(
       "/api/camera/template/calibrate",
-      { phrase: templatePhraseEl.value || "位置一 劈砍" },
+      { phrase: templatePhraseEl.value || "位置1 劈砍" },
       12000,
     );
     log(`TEMPLATE CALIBRATE ${JSON.stringify({ ...result, image_data: result.image_data ? "<image>" : null })}`);
@@ -223,7 +223,7 @@ async function templateExecute() {
   try {
     const result = await postJson(
       "/api/camera/template/execute",
-      { action_id: 4, settle_seconds: 0.4 },
+      { settle_seconds: 0.4 },
       15000,
     );
     log(`TEMPLATE EXECUTE ${JSON.stringify({ ...result, image_data: result.image_data ? "<image>" : null })}`);
@@ -307,7 +307,7 @@ async function autoScanTick() {
 
     const executeResult = await postJson(
       "/api/camera/template/execute",
-      { action_id: 4, settle_seconds: 0.4 },
+      { settle_seconds: 0.4 },
       15000,
     );
     log(`AUTO EXECUTE ${JSON.stringify({ ...executeResult, image_data: executeResult.image_data ? "<image>" : null })}`);

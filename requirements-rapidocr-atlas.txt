@@ -1,0 +1,4 @@
+# Atlas 200I DK A2 currently uses CPython 3.9 on aarch64.
+# ONNX Runtime 1.19.2 is pinned because it provides a CPython 3.9 ARM64 wheel.
+onnxruntime==1.19.2
+rapidocr==3.9.1

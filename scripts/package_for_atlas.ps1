@@ -14,7 +14,9 @@ $include = @(
     "tools",
     "docs",
     "scripts",
+    "systemd",
     "requirements.txt",
+    "requirements-rapidocr-atlas.txt",
     "README.md",
     "PROJECT_NOTES.md",
     ".gitignore"
@@ -41,7 +43,10 @@ Get-ChildItem -Path $tempDir -Recurse -File -Force |
     Where-Object { $_.Extension -in @(".pyc", ".pyo") } |
     Remove-Item -Force
 
-Compress-Archive -Path (Join-Path $tempDir "*") -DestinationPath $outFile
+& tar.exe -a -c -f $outFile -C $tempDir .
+if ($LASTEXITCODE -ne 0) {
+    throw "tar.exe failed with exit code $LASTEXITCODE"
+}
 Remove-Item -Recurse -Force $tempDir
 
 Write-Host "Created: $outFile"
